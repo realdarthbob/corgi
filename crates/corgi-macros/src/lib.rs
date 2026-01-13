@@ -38,12 +38,12 @@ pub fn rpc_fn(input: TokenStream) -> TokenStream {
         .map(|i| syn::Ident::new(&format!("arg{}", i), Span::call_site()))
         .collect();
 
-    let return_ty = match &func.sig.output {
-        syn::ReturnType::Type(_, ty) => ty,
-        syn::ReturnType::Default => &Box::new(syn::parse_quote!(())),
+    let return_ty: Box<syn::Type> = match &func.sig.output {
+        syn::ReturnType::Type(_, ty) => ty.clone(),
+        syn::ReturnType::Default => Box::new(syn::parse_quote!(())),
     };
 
-    let expanded = quote! {{
+    let expanded: proc_macro2::TokenStream = quote! {{
         use bytes::Bytes;
         use futures::FutureExt;
 
