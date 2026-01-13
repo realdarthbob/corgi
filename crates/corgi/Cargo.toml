@@ -6,7 +6,7 @@ license = "MIT"
 edition = "2024"
 repository = "https://github.com/realdarthbob/corgi"
 documentation = "https://docs.rs/corgi"
-keywords = ["corgi", "udp", "tcp", "rpc", "networking", "async", "tokio"]
+keywords = ["corgi", "udp", "rpc", "networking", "library"]
 categories = ["network-programming", "asynchronous"]
 
 [dependencies]
