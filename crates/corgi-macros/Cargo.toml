@@ -6,17 +6,7 @@ license = "MIT"
 edition = "2024"
 repository = "https://github.com/realdarthbob/corgi"
 documentation = "https://docs.rs/corgi-macros"
-keywords = [
-  "corgi",
-  "udp",
-  "tcp",
-  "rpc",
-  "networking",
-  "macros",
-  "macro",
-  "async",
-  "tokio",
-]
+keywords = ["corgi", "udp", "rpc", "networking", "macro"]
 categories = ["network-programming", "asynchronous"]
 
 [lib]
