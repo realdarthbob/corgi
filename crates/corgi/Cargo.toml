@@ -1,0 +1,12 @@
+[package]
+name = "corgi"
+version = "0.1.0"
+description = "🦀 Rust based RPC library on UDP"
+license = "MIT"
+edition = "2024"
+repository = "https://github.com/realdarthbob/corgi"
+documentation = "https://docs.rs/corgi"
+keywords = ["udp", "rpc", "networking", "async", "tokio"]
+categories = ["network-programming", "asynchronous"]
+
+[dependencies]
