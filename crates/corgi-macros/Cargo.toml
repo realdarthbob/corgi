@@ -1,6 +1,29 @@
 [package]
 name = "corgi-macros"
-version = "0.1.0"
+version = "0.0.1"
+description = "🦀 Rust based RPC macros"
+license = "MIT"
 edition = "2024"
+repository = "https://github.com/realdarthbob/corgi"
+documentation = "https://docs.rs/corgi-macros"
+keywords = [
+  "corgi",
+  "udp",
+  "tcp",
+  "rpc",
+  "networking",
+  "macros",
+  "macro",
+  "async",
+  "tokio",
+]
+categories = ["network-programming", "asynchronous"]
+
+[lib]
+proc-macro = true
 
 [dependencies]
+syn = { version = "2.0" }
+quote = { version = "1.0" }
+bytes = { workspace = true }
+proc-macro2 = { version = "1" }

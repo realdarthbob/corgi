@@ -1,6 +1,13 @@
 [package]
 name = "corgi-cli"
-version = "0.1.0"
+version = "0.0.1"
+description = "🦀 Rust based CLI program to communicate with Corgi protocol"
+license = "MIT"
 edition = "2024"
+repository = "https://github.com/realdarthbob/corgi"
+documentation = "https://docs.rs/corgi-cli"
+keywords = ["corgi", "udp", "tcp", "rpc", "cli", "networking", "async", "tokio"]
+categories = ["network-programming", "asynchronous"]
+
 
 [dependencies]
