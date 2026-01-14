@@ -1,14 +1,45 @@
+use core::fmt;
 use std::net::SocketAddr;
 
 use bytes::BytesMut;
 use tokio::net::UdpSocket;
 
+const UDP_CHUNK_SIZE: usize = 1200;
+
 use crate::{
     Container,
-    protocol::types::{IncomingPackage, RpcError},
+    protocol::{
+        parser::Parser,
+        types::{Package, RpcError},
+    },
 };
 
-const UDP_CHUNK_SIZE: usize = 1200;
+#[derive(Debug)]
+struct RpcCall {
+    local_address: SocketAddr,
+    peer_address: SocketAddr,
+    package: Package,
+}
+
+impl RpcCall {
+    fn new(local_address: SocketAddr, peer_address: SocketAddr, package: Package) -> Self {
+        Self {
+            local_address,
+            peer_address,
+            package,
+        }
+    }
+}
+
+impl fmt::Display for RpcCall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "RpcCall(local_address={}, peer_address={}, package={})",
+            self.local_address, self.peer_address, self.package
+        )
+    }
+}
 
 pub struct RpcServer<'a, T> {
     container: &'a Container,
@@ -32,15 +63,23 @@ impl<'a> RpcServer<'a, UdpSocket> {
         Ok(instance)
     }
 
+    pub fn local_address(&self) -> Result<SocketAddr, RpcError> {
+        let address = self
+            .connection
+            .local_addr()
+            .map_err(RpcError::LocalAddress)?;
+
+        Ok(address)
+    }
+
     pub async fn start(&self) -> Result<(), RpcError> {
         let mut buf = BytesMut::with_capacity(UDP_CHUNK_SIZE);
-        loop {
-            let local_address = self
-                .connection
-                .local_addr()
-                .map_err(RpcError::LocalAddress)?;
+        let mut parser = Parser::default();
+        let local_address = self.local_address()?;
 
+        loop {
             tracing::trace!("Waiting for accepting RPC call for address {local_address}");
+
             buf.clear();
             buf.resize(UDP_CHUNK_SIZE, 0);
             let (len, peer_address) = match self.connection.recv_from(&mut buf).await {
@@ -52,8 +91,10 @@ impl<'a> RpcServer<'a, UdpSocket> {
             };
             buf.truncate(len);
 
-            let package = IncomingPackage::new(local_address, peer_address, buf.split().freeze());
-            tracing::trace!("Received package from address: {peer_address}. Package: {package}");
+            if let Some(package) = parser.apply(&buf)? {
+                let rpc_call = RpcCall::new(local_address, peer_address, package);
+                tracing::trace!("Received RpcCall {rpc_call}");
+            }
         }
     }
 }

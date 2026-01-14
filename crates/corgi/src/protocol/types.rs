@@ -1,19 +1,21 @@
 use core::fmt;
-use std::net::SocketAddr;
+use std::{cmp, net::SocketAddr};
 
 use bytes::Bytes;
 use tokio::io;
 
-#[derive(Debug)]
+pub type CallId = u64;
+
+#[derive(Debug, Eq)]
 pub struct ChunkHeader {
-    call_id: u64,
+    call_id: CallId,
     index: u16,
     total: u16,
     len: u32,
 }
 
 impl ChunkHeader {
-    pub fn new(call_id: u64, index: u16, total: u16, len: u32) -> Self {
+    pub fn new(call_id: CallId, index: u16, total: u16, len: u32) -> Self {
         Self {
             call_id,
             index,
@@ -22,7 +24,7 @@ impl ChunkHeader {
         }
     }
 
-    pub fn call_id(&self) -> u64 {
+    pub fn call_id(&self) -> CallId {
         self.call_id
     }
 
@@ -39,6 +41,24 @@ impl ChunkHeader {
     }
 }
 
+impl PartialEq for ChunkHeader {
+    fn eq(&self, other: &Self) -> bool {
+        self.call_id == other.call_id && self.index == other.index
+    }
+}
+
+impl Ord for ChunkHeader {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        (self.call_id, self.index).cmp(&(other.call_id, other.index))
+    }
+}
+
+impl PartialOrd for ChunkHeader {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl fmt::Display for ChunkHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -49,7 +69,7 @@ impl fmt::Display for ChunkHeader {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq)]
 pub struct PackageChunk {
     header: ChunkHeader,
     payload: Bytes,
@@ -69,6 +89,24 @@ impl PackageChunk {
     }
 }
 
+impl Ord for PackageChunk {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.header().cmp(&other.header())
+    }
+}
+
+impl PartialOrd for PackageChunk {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        self.header().partial_cmp(&other.header())
+    }
+}
+
+impl PartialEq for PackageChunk {
+    fn eq(&self, other: &Self) -> bool {
+        self.header == other.header
+    }
+}
+
 impl fmt::Display for PackageChunk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -81,29 +119,23 @@ impl fmt::Display for PackageChunk {
 }
 
 #[derive(Debug)]
-pub struct IncomingPackage {
-    local_address: SocketAddr,
-    peer_address: SocketAddr,
+pub struct Package {
+    call_id: CallId,
     payload: Bytes,
 }
 
-impl IncomingPackage {
-    pub fn new(local_address: SocketAddr, peer_address: SocketAddr, payload: Bytes) -> Self {
-        IncomingPackage {
-            local_address,
-            peer_address,
-            payload,
-        }
+impl Package {
+    pub fn new(call_id: CallId, payload: Bytes) -> Self {
+        Package { call_id, payload }
     }
 }
 
-impl fmt::Display for IncomingPackage {
+impl fmt::Display for Package {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "IncomingPackage(local_address={}, peer_address={}, payload=Bytes[{}])",
-            self.local_address,
-            self.peer_address,
+            "Package(call_id={}, payload=Bytes[{}])",
+            self.call_id,
             self.payload.len()
         )
     }
