@@ -28,6 +28,7 @@
 //! ```no_run
 //! use corgi::{rpc_fn, Container};
 //!
+//! #[rpc_fn]
 //! async fn hello_world(name: String) -> String {
 //!     format!("Hello, {}!", name)
 //! }
@@ -35,7 +36,7 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let container = Container::default()
-//!         .register(rpc_fn!(hello_world));
+//!         .register(&*__CORGI_RPC_hello_world);
 //!
 //!     // Start UDP listener / event loop here
 //!

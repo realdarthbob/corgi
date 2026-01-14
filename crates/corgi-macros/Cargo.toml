@@ -17,3 +17,9 @@ syn = { version = "2.0", features = ["full"] }
 quote = { version = "1.0" }
 proc-macro2 = { version = "1" }
 bytes = { workspace = true }
+
+[dev-dependencies]
+corgi = { path = "../corgi" }
+futures = { workspace = true }
+wincode = { workspace = true }
+tokio = { workspace = true }

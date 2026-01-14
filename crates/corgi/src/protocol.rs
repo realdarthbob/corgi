@@ -14,6 +14,7 @@ struct IncomingPackage {
 
 #[derive(Debug, Clone)]
 pub struct Param {
+    pub name: &'static str,
     pub type_id: TypeId,
 }
 
@@ -24,7 +25,7 @@ type Handler =
 pub struct RpcFunction {
     pub name: &'static str,
     pub params: Vec<Param>,
-    pub return_type: TypeId,
+    pub return_type: Option<TypeId>,
     pub handler: Arc<Handler>,
 }
 
