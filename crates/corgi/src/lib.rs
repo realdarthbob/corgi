@@ -43,9 +43,10 @@
 //!     Ok(())
 //! }
 //! ```
-pub mod codec;
 pub mod container;
 pub mod protocol;
+pub mod server;
 
 pub use container::Container;
 pub use corgi_macros::rpc_fn;
+pub use server::RpcServer;

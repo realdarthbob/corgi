@@ -1,6 +1,26 @@
-use std::collections::HashMap;
+use bytes::Bytes;
+use std::{any::TypeId, collections::HashMap, sync::Arc};
 
-use crate::protocol::RpcFunction;
+use futures::future::BoxFuture;
+
+use crate::protocol::{codec::BincodeCodec, types::RpcError};
+
+#[derive(Debug, Clone)]
+pub struct Param {
+    pub name: &'static str,
+    pub type_id: TypeId,
+}
+
+type Handler =
+    dyn Fn(Bytes, BincodeCodec) -> BoxFuture<'static, Result<Bytes, RpcError>> + Send + Sync;
+
+#[derive(Clone)]
+pub struct RpcFunction {
+    pub name: &'static str,
+    pub params: Vec<Param>,
+    pub return_type: Option<TypeId>,
+    pub handler: Arc<Handler>,
+}
 
 #[derive(Default)]
 pub struct Container {

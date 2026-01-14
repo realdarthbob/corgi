@@ -180,7 +180,7 @@ async fn test_rpc_execution() {
         arg1 + arg2
     }
 
-    let codec = corgi::codec::BincodeCodec;
+    let codec = corgi::protocol::codec::BincodeCodec;
 
     let args = (10_i32, 20_i32);
     let input_bytes = codec.encode(&args).unwrap();

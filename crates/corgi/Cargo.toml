@@ -16,3 +16,4 @@ bytes = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 wincode = { workspace = true }
+tracing = { workspace = true }

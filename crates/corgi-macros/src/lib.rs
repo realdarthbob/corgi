@@ -18,7 +18,7 @@ use syn::{FnArg, ItemFn, ReturnType, parse_macro_input};
 /// This attribute does two things:
 /// 1. It keeps the original function intact so it can be called locally.
 /// 2. It generates a global `static` variable named `__CORGI_RPC_<fn_name>`
-///    of type [`corgi::protocol::RpcFunction`].
+///    of type [`corgi::container::RpcFunction`].
 ///
 /// # Requirements
 /// - All arguments must implement `wincode::SchemaReadOwned`.
@@ -27,6 +27,8 @@ use syn::{FnArg, ItemFn, ReturnType, parse_macro_input};
 ///
 /// # Example
 /// ```rust
+/// use corgi_macros::rpc_fn;
+///  
 /// #[rpc_fn]
 /// async fn add(a: i32, b: i32) -> i32 {
 ///     a + b
@@ -62,7 +64,7 @@ pub fn rpc_fn(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let param_descriptors = params.iter().map(|(ident, ty)| {
         let name_str = ident.to_string();
         quote! {
-            corgi::protocol::Param {
+            corgi::container::Param {
                 name: #name_str,
                 type_id: std::any::TypeId::of::<#ty>(),
             }
@@ -104,14 +106,14 @@ pub fn rpc_fn(_attr: TokenStream, input: TokenStream) -> TokenStream {
         #func
 
         #[allow(non_upper_case_globals)]
-        pub static #rpc_ident: std::sync::LazyLock<corgi::protocol::RpcFunction> =
+        pub static #rpc_ident: std::sync::LazyLock<corgi::container::RpcFunction> =
         std::sync::LazyLock::new(|| {
-            corgi::protocol::RpcFunction {
+            corgi::container::RpcFunction {
                 name: #fn_name_str,
                 params: vec![ #(#param_descriptors),* ],
                 return_type: #return_type_expr,
                 handler: std::sync::Arc::new(
-                    |bytes: bytes::Bytes, codec: corgi::codec::BincodeCodec| {
+                    |bytes: bytes::Bytes, codec: corgi::protocol::codec::BincodeCodec| {
                         use futures::FutureExt;
 
                         async move {
