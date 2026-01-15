@@ -7,10 +7,24 @@
 //!
 //! All parsing logic in this module is designed to be
 //! deterministic, panic-free, and safe for untrusted UDP input.
+
 use bytes::{BufMut, Bytes, BytesMut};
 use wincode::{SchemaReadOwned, SchemaWrite};
 
-use crate::protocol::types::{ChunkHeader, PackageChunk, RpcError};
+use crate::protocol::types::{ChunkHeader, Envelope, PackageChunk, RpcError};
+
+/// CHUNK_HEADER_SIZE indicates protocol chunk header size, where call_id, chunk index, total
+/// chunks and paylaod len is stored.
+const CHUNK_HEADER_SIZE: usize = 16;
+
+/// MAX_ARGUMENTS_COUNT indicates RPC function maxiumum arguments count
+const MAX_ARGUMENTS_COUNT: usize = 16;
+
+/// MAX_ARGUMENTS_SIZE indicates RPC function maximum arguments size which is equals to 16MB
+const MAX_ARGUMENT_SIZE: usize = 16 * 1024 * 1024;
+
+/// MAX_FUNCTION_NAME_SIZE indicates RPC function name length which must not exceed 65536
+const MAX_FUNCTION_NAME_SIZE: usize = u16::MAX as usize;
 
 #[derive(Default, Clone)]
 pub struct BincodeCodec;
@@ -26,10 +40,6 @@ impl BincodeCodec {
         wincode::deserialize(&bytes).map_err(|_| RpcError::Decode)
     }
 }
-
-/// CHUNK_HEADER_SIZE indicates protocol chunk header size, where call_id, chunk index, total
-/// chunks and paylaod len is stored.
-const CHUNK_HEADER_SIZE: usize = 16;
 
 ///
 /// Binary wire format for a single RPC message chunk.
@@ -89,24 +99,32 @@ impl PackageChunkCodec {
 
     pub fn decode(&self, bytes: &[u8]) -> Result<PackageChunk, RpcError> {
         if bytes.len() < CHUNK_HEADER_SIZE {
-            return Err(RpcError::Decode);
+            return Err(RpcError::ChunkHeaderSizeConstraintViolation);
         }
 
-        let len: [u8; 4] = bytes[12..16].try_into().map_err(|_| RpcError::Decode)?;
-        let len = u32::from_le_bytes(len);
+        let len = bytes[12..16]
+            .try_into()
+            .map(u32::from_le_bytes)
+            .map_err(|_| RpcError::Decode)?;
 
         if bytes.len() < CHUNK_HEADER_SIZE + len as usize {
-            return Err(RpcError::Decode);
+            return Err(RpcError::ChunkHeaderSizeConstraintViolation);
         }
 
-        let call_id: [u8; 8] = bytes[..8].try_into().map_err(|_| RpcError::Decode)?;
-        let call_id = u64::from_le_bytes(call_id);
+        let call_id = bytes[..8]
+            .try_into()
+            .map(u64::from_le_bytes)
+            .map_err(|_| RpcError::Decode)?;
 
-        let index: [u8; 2] = bytes[8..10].try_into().map_err(|_| RpcError::Decode)?;
-        let index = u16::from_le_bytes(index);
+        let index = bytes[8..10]
+            .try_into()
+            .map(u16::from_le_bytes)
+            .map_err(|_| RpcError::Decode)?;
 
-        let total: [u8; 2] = bytes[10..12].try_into().map_err(|_| RpcError::Decode)?;
-        let total = u16::from_le_bytes(total);
+        let total = bytes[10..12]
+            .try_into()
+            .map(u16::from_le_bytes)
+            .map_err(|_| RpcError::Decode)?;
 
         let header = ChunkHeader::new(call_id, index, total, len);
 
@@ -115,5 +133,132 @@ impl PackageChunkCodec {
         let payload = Bytes::copy_from_slice(&bytes[payload_start..payload_end + len as usize]);
 
         Ok(PackageChunk::new(header, payload))
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct EnvelopeCodec;
+
+impl EnvelopeCodec {
+    pub fn encode(&self, value: Envelope) -> Result<Bytes, RpcError> {
+        let fn_name = value.fn_name();
+        let args = value.parameters();
+
+        if fn_name.len() > MAX_FUNCTION_NAME_SIZE {
+            return Err(RpcError::MaxFunctionNameConstraintViolation);
+        }
+
+        if args.len() > MAX_ARGUMENTS_COUNT {
+            return Err(RpcError::MaxArgumentsConstraintViolation);
+        }
+
+        for arg in args {
+            if arg.len() > MAX_ARGUMENT_SIZE {
+                return Err(RpcError::MaxArgumentSizeConstraintViolation);
+            }
+        }
+
+        // fn name + fn len + args count
+        let mut capacity = 2 + fn_name.len() + 2;
+
+        // Allocation for each argument
+        for arg in args {
+            capacity += 8 + arg.len();
+        }
+
+        let mut buf = BytesMut::with_capacity(capacity);
+
+        buf.put_u16(fn_name.len() as u16);
+
+        buf.extend_from_slice(fn_name);
+
+        buf.put_u16(args.len() as u16);
+
+        for arg in args {
+            buf.put_u64(arg.len() as u64);
+            buf.extend_from_slice(arg);
+        }
+
+        Ok(buf.freeze())
+    }
+
+    pub fn decode(&self, bytes: &[u8]) -> Result<Envelope, RpcError> {
+        let mut cursor = 0;
+
+        // Function name length
+        if bytes.len() < 2 {
+            return Err(RpcError::Decode);
+        }
+
+        let fn_len = bytes[cursor..cursor + 2]
+            .try_into()
+            .map(u16::from_le_bytes)
+            .map_err(|_| RpcError::Decode)? as usize;
+
+        if fn_len > MAX_FUNCTION_NAME_SIZE {
+            return Err(RpcError::MaxFunctionNameConstraintViolation);
+        }
+
+        cursor += 2;
+
+        // Function name
+        if bytes.len() < fn_len + cursor {
+            return Err(RpcError::Decode);
+        }
+
+        let fn_name = Bytes::copy_from_slice(&bytes[cursor..cursor + fn_len]);
+        cursor += fn_len;
+
+        if bytes.len() < cursor + 2 {
+            return Err(RpcError::Decode);
+        }
+
+        let arg_count = bytes[cursor..cursor + 2]
+            .try_into()
+            .map(u16::from_le_bytes)
+            .map_err(|_| RpcError::Decode)? as usize;
+
+        cursor += 2;
+
+        if arg_count > MAX_ARGUMENTS_COUNT {
+            return Err(RpcError::MaxArgumentsConstraintViolation);
+        }
+
+        // Arguments
+        let mut parameters = Vec::with_capacity(arg_count);
+
+        for _ in 0..arg_count {
+            if bytes.len() < cursor + 8 {
+                return Err(RpcError::Decode);
+            }
+
+            let arg_len = bytes[cursor..cursor + 8]
+                .try_into()
+                .map(u64::from_le_bytes)
+                .map_err(|_| RpcError::Decode)? as usize;
+
+            cursor += 8;
+
+            if arg_len > MAX_ARGUMENT_SIZE {
+                return Err(RpcError::MaxArgumentSizeConstraintViolation);
+            }
+
+            if bytes.len() < cursor + arg_len {
+                return Err(RpcError::Decode);
+            }
+
+            let arg = &bytes[cursor..cursor + arg_len];
+            cursor += arg_len;
+
+            parameters.push(Bytes::copy_from_slice(arg));
+        }
+
+        if cursor != bytes.len() {
+            return Err(RpcError::GarbageBytes);
+        }
+
+        let envelope = Envelope::new(fn_name, parameters);
+
+        Ok(envelope)
     }
 }

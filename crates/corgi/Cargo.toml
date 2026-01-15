@@ -12,6 +12,7 @@ categories = ["network-programming", "asynchronous"]
 [dependencies]
 corgi-macros = { version = "0.0.1", path = "../corgi-macros" }
 
+prost = { workspace = true }
 bytes = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }

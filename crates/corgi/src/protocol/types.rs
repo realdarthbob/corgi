@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{cmp, net::SocketAddr};
+use std::cmp;
 
 use bytes::Bytes;
 use tokio::io;
@@ -91,7 +91,7 @@ impl PackageChunk {
 
 impl Ord for PackageChunk {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        self.header().cmp(&other.header())
+        self.header().cmp(other.header())
     }
 }
 
@@ -119,24 +119,57 @@ impl fmt::Display for PackageChunk {
 }
 
 #[derive(Debug)]
-pub struct Package {
-    call_id: CallId,
-    payload: Bytes,
+pub struct Envelope {
+    fn_name: Bytes,
+    parameters: Vec<Bytes>,
 }
 
-impl Package {
-    pub fn new(call_id: CallId, payload: Bytes) -> Self {
-        Package { call_id, payload }
+impl Envelope {
+    pub fn new(fn_name: Bytes, parameters: Vec<Bytes>) -> Self {
+        Self {
+            fn_name,
+            parameters,
+        }
+    }
+
+    pub fn fn_name(&self) -> &Bytes {
+        &self.fn_name
+    }
+
+    pub fn parameters(&self) -> &Vec<Bytes> {
+        &self.parameters
     }
 }
 
-impl fmt::Display for Package {
+impl fmt::Display for Envelope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Package(call_id={}, payload=Bytes[{}])",
-            self.call_id,
-            self.payload.len()
+            "Envelope(fn_name=Byyes[{}], parameters={})",
+            self.fn_name.len(),
+            self.parameters().len(),
+        )
+    }
+}
+
+#[derive(Debug)]
+pub struct RpcCall {
+    call_id: CallId,
+    envelope: Envelope,
+}
+
+impl RpcCall {
+    pub fn new(call_id: CallId, envelope: Envelope) -> Self {
+        RpcCall { call_id, envelope }
+    }
+}
+
+impl fmt::Display for RpcCall {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "RpcCall(call_id={}, envelope={})",
+            self.call_id, self.envelope,
         )
     }
 }
@@ -145,6 +178,11 @@ impl fmt::Display for Package {
 pub enum RpcError {
     Decode,
     Encode,
+    MaxFunctionNameConstraintViolation,
+    MaxArgumentsConstraintViolation,
+    MaxArgumentSizeConstraintViolation,
+    ChunkHeaderSizeConstraintViolation,
+    GarbageBytes,
     SocketBinding(io::Error),
     LocalAddress(io::Error),
 }

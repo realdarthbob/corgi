@@ -10,19 +10,19 @@ use crate::{
     Container,
     protocol::{
         parser::Parser,
-        types::{Package, RpcError},
+        types::{RpcCall, RpcError},
     },
 };
 
 #[derive(Debug)]
-struct RpcCall {
+struct RpcCallContext {
     local_address: SocketAddr,
     peer_address: SocketAddr,
-    package: Package,
+    package: RpcCall,
 }
 
-impl RpcCall {
-    fn new(local_address: SocketAddr, peer_address: SocketAddr, package: Package) -> Self {
+impl RpcCallContext {
+    fn new(local_address: SocketAddr, peer_address: SocketAddr, package: RpcCall) -> Self {
         Self {
             local_address,
             peer_address,
@@ -31,7 +31,7 @@ impl RpcCall {
     }
 }
 
-impl fmt::Display for RpcCall {
+impl fmt::Display for RpcCallContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -91,9 +91,9 @@ impl<'a> RpcServer<'a, UdpSocket> {
             };
             buf.truncate(len);
 
-            if let Some(package) = parser.apply(&buf)? {
-                let rpc_call = RpcCall::new(local_address, peer_address, package);
-                tracing::trace!("Received RpcCall {rpc_call}");
+            if let Some(call) = parser.apply(&buf)? {
+                let context = RpcCallContext::new(local_address, peer_address, call);
+                tracing::trace!("Received RpcCallContext {context}");
             }
         }
     }
