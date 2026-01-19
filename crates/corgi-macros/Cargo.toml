@@ -21,5 +21,5 @@ bytes = { workspace = true }
 [dev-dependencies]
 corgi = { path = "../corgi" }
 futures = { workspace = true }
-wincode = { workspace = true }
+prost = { workspace = true }
 tokio = { workspace = true }

@@ -73,12 +73,18 @@ pub fn rpc_fn(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let param_types: Vec<_> = params.iter().map(|(_, ty)| ty).collect();
     let arg_idents: Vec<_> = params.iter().map(|(ident, _)| ident.clone()).collect();
-    let tuple_type = quote! { ( #(#param_types),* ) };
 
     let has_return = match &func.sig.output {
         ReturnType::Default => false,
         ReturnType::Type(_, _) => true,
     };
+
+    let decoders = param_types.iter().enumerate().map(|(i, ty)| {
+        let ident = &arg_idents[i];
+        quote! {
+            let #ident: #ty = codec.decode(&args[#i])?;
+        }
+    });
 
     let return_type_expr = if has_return {
         if let ReturnType::Type(_, ty) = &func.sig.output {
@@ -113,12 +119,11 @@ pub fn rpc_fn(_attr: TokenStream, input: TokenStream) -> TokenStream {
                 params: vec![ #(#param_descriptors),* ],
                 return_type: #return_type_expr,
                 handler: std::sync::Arc::new(
-                    |bytes: bytes::Bytes, codec: corgi::protocol::codec::BincodeCodec| {
+                    |args: Vec<bytes::Bytes>, codec: corgi::protocol::codec::ProtobufCodec| {
                         use futures::FutureExt;
 
                         async move {
-                            let args: #tuple_type = codec.decode(bytes)?;
-                            let ( #(#arg_idents),* ) = args;
+                            #(#decoders)*
                             #handler_body
                         }.boxed()
                     }

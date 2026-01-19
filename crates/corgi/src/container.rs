@@ -3,7 +3,7 @@ use std::{any::TypeId, collections::HashMap, sync::Arc};
 
 use futures::future::BoxFuture;
 
-use crate::protocol::{codec::BincodeCodec, types::RpcError};
+use crate::protocol::{codec::ProtobufCodec, types::RpcError};
 
 #[derive(Debug, Clone)]
 pub struct Param {
@@ -12,7 +12,7 @@ pub struct Param {
 }
 
 type Handler =
-    dyn Fn(Bytes, BincodeCodec) -> BoxFuture<'static, Result<Bytes, RpcError>> + Send + Sync;
+    dyn Fn(Vec<Bytes>, ProtobufCodec) -> BoxFuture<'static, Result<Bytes, RpcError>> + Send + Sync;
 
 #[derive(Clone)]
 pub struct RpcFunction {
@@ -28,8 +28,11 @@ pub struct Container {
 }
 
 impl Container {
-    pub fn register(mut self, function: &'static RpcFunction) -> Self {
-        let _ = self.functions.entry(function.name).or_insert(function);
-        self
+    pub fn register(&mut self, function: &'static RpcFunction) {
+        self.functions.entry(function.name).or_insert(function);
+    }
+
+    pub fn find(&self, name: &str) -> Option<&'static RpcFunction> {
+        self.functions.get(name).copied()
     }
 }

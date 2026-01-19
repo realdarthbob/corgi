@@ -9,7 +9,7 @@
 //! deterministic, panic-free, and safe for untrusted UDP input.
 
 use bytes::{BufMut, Bytes, BytesMut};
-use wincode::{SchemaReadOwned, SchemaWrite};
+use prost::Message;
 
 use crate::protocol::types::{ChunkHeader, Envelope, PackageChunk, RpcError};
 
@@ -27,17 +27,17 @@ const MAX_ARGUMENT_SIZE: usize = 16 * 1024 * 1024;
 const MAX_FUNCTION_NAME_SIZE: usize = u16::MAX as usize;
 
 #[derive(Default, Clone)]
-pub struct BincodeCodec;
+pub struct ProtobufCodec;
 
-impl BincodeCodec {
-    pub fn encode<T: SchemaWrite<Src = T>>(&self, value: &T) -> Result<Bytes, RpcError> {
-        wincode::serialize(value)
-            .map(Bytes::from)
-            .map_err(|_| RpcError::Encode)
+impl ProtobufCodec {
+    pub fn encode<T: Message>(&self, value: &T) -> Result<Bytes, RpcError> {
+        let mut buf = BytesMut::with_capacity(value.encoded_len());
+        value.encode(&mut buf).map_err(|_| RpcError::Encode)?;
+        Ok(buf.freeze())
     }
 
-    pub fn decode<T: SchemaReadOwned<Dst = T>>(&self, bytes: Bytes) -> Result<T, RpcError> {
-        wincode::deserialize(&bytes).map_err(|_| RpcError::Decode)
+    pub fn decode<T: Message + Default>(&self, bytes: &[u8]) -> Result<T, RpcError> {
+        T::decode(bytes).map_err(|_| RpcError::Decode)
     }
 }
 

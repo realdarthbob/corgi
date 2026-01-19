@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use corgi_macros::rpc_fn;
-use wincode::{SchemaRead, SchemaWrite};
+use prost::Message;
 
 #[test]
 fn rpc_fn_should_create_rpc_function_instance_with_zero_arguments_fn() {
@@ -88,51 +88,23 @@ fn rpc_fn_should_create_rpc_function_instance_with_multiple_arguments_fn_with_re
     );
 }
 
-struct Arg1(String);
-
-impl<'de> SchemaRead<'de> for Arg1 {
-    type Dst = Arg1;
-
-    fn read(
-        _: &mut impl wincode::io::Reader<'de>,
-        _: &mut std::mem::MaybeUninit<Self::Dst>,
-    ) -> wincode::ReadResult<()> {
-        todo!()
-    }
-}
+#[derive(Message, Clone, PartialEq)]
+struct Arg1(#[prost(string, tag = "1")] String);
 
 #[test]
 fn rpc_fn_should_create_rpc_function_instance_with_custom_multiple_arguments_fn_with_custom_return_type()
  {
-    struct Arg2(String);
+    #[derive(Message, Clone, PartialEq)]
+    struct Arg2(#[prost(string, tag = "1")] String);
 
-    impl<'de> SchemaRead<'de> for Arg2 {
-        type Dst = Arg2;
-
-        fn read(
-            _: &mut impl wincode::io::Reader<'de>,
-            _: &mut std::mem::MaybeUninit<Self::Dst>,
-        ) -> wincode::ReadResult<()> {
-            todo!()
-        }
-    }
-
+    #[derive(Message, Clone, PartialEq)]
     struct ReturnType {
+        #[prost(string, tag = "1")]
         _data: String,
+        #[prost(string, tag = "2")]
         _data2: String,
     }
 
-    impl SchemaWrite for ReturnType {
-        type Src = ReturnType;
-
-        fn size_of(_: &Self::Src) -> wincode::WriteResult<usize> {
-            todo!()
-        }
-
-        fn write(_: &mut impl wincode::io::Writer, _: &Self::Src) -> wincode::WriteResult<()> {
-            todo!()
-        }
-    }
     #[rpc_fn]
     async fn foo_custom_multiple_args_custom_return_type(arg1: Arg1, arg2: Arg2) -> ReturnType {
         ReturnType {
@@ -180,14 +152,16 @@ async fn test_rpc_execution() {
         arg1 + arg2
     }
 
-    let codec = corgi::protocol::codec::BincodeCodec;
+    let codec = corgi::protocol::codec::ProtobufCodec;
 
-    let args = (10_i32, 20_i32);
-    let input_bytes = codec.encode(&args).unwrap();
+    let args = vec![
+        codec.encode(&10_i32).unwrap(),
+        codec.encode(&20_i32).unwrap(),
+    ];
 
     let handler = __CORGI_RPC_foo_multiple_args_return_type.handler.clone();
-    let result_bytes = handler(input_bytes, codec.clone()).await.unwrap();
+    let result_bytes = handler(args, codec.clone()).await.unwrap();
 
-    let result: i32 = codec.decode(result_bytes).unwrap();
+    let result: i32 = codec.decode(&result_bytes).unwrap();
     assert_eq!(result, 30);
 }
