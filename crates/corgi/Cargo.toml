@@ -1,6 +1,6 @@
 [package]
 name = "corgi"
-version = "0.0.2"
+version = "0.0.3"
 description = "🦀 Rust based RPC library on UDP"
 license = "MIT"
 edition = "2024"
@@ -10,7 +10,7 @@ keywords = ["corgi", "udp", "rpc", "networking", "library"]
 categories = ["network-programming", "asynchronous"]
 
 [dependencies]
-corgi-macros = { version = "0.0.2", path = "../corgi-macros" }
+corgi-macros = { version = "0.0.3", path = "../corgi-macros" }
 
 prost = { workspace = true }
 bytes = { workspace = true }
