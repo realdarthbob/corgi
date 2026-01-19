@@ -1,3 +1,4 @@
+🦀 Rust based RPC library on UDP. Macros for Corgi library
 ![status](https://img.shields.io/badge/status-work_in_progress-yellow)
 
 ## Development Status
